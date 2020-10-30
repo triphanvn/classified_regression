@@ -5,7 +5,8 @@ import numpy as np
 import torch
 from classireg.experiments.numerical_benchmarks.loop_utils import initialize_logging_variables,append_logging_variables,get_initial_evaluations,get_objective_functions
 from classireg.utils.plotting_collection import plotting_tool_cons
-from classireg.acquisitions import ExpectedImprovementWithConstraints, ExpectedImprovementWithConstraintsClassi
+# from classireg.acquisitions import ExpectedImprovementWithConstraints, ExpectedImprovementWithConstraintsClassi
+from classireg.acquisitions import ExpectedImprovementWithConstraintsClassi
 from classireg.utils.parsing import convert_lists2arrays, save_data, get_logger
 from classireg.utils.parse_data_collection import generate_folder_at_path
 from omegaconf import DictConfig

@@ -25,7 +25,7 @@ from botorch.gen import gen_candidates_scipy,get_best_candidates
 from gpytorch.priors import GammaPrior
 from scipy.stats import gamma, beta
 import matplotlib.pyplot as plt
-from classireg.utils.optimize import OptimizationNonLinear
+# from classireg.utils.optimize import OptimizationNonLinear
 from typing import Optional, Tuple
 from botorch.optim import optimize_acqf
 np.set_printoptions(linewidth=10000)

@@ -24,11 +24,12 @@ python --version
 ```
 2. Install the following dependencies
 ```bash
-pip install numpy botorch==0.3.0 matplotlib pyyaml hydra-core==0.11.3 nlopt==2.6.2
+pip install numpy botorch==0.3.0 matplotlib pyyaml hydra-core==0.11.3
 ```
 3. Clone this repository to your desired path:
 ```bash
 git clone https://github.com/alonrot/classified_regression.git
+git checkout safeoptext_eic
 ```
 4. Navigate to the package folder and install it
 ```bash

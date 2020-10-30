@@ -12,7 +12,7 @@ from classireg.utils.parse_data_collection import generate_folder_at_path
 from omegaconf import DictConfig
 from botorch.models import ModelListGP
 from classireg.models.gpmodel import GPmodel
-from classireg.models.gpcr_model import GPCRmodel
+# from classireg.models.gpcr_model import GPCRmodel
 from classireg.models.gpclassi_model import GPClassifier
 import yaml
 logger = get_logger(__name__)

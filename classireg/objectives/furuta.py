@@ -131,6 +131,7 @@ class FurutaObj():
 		is_stable, val_reward = self.collect_value_manual_input()
 
 		# # Re-scaling if necessary:
+		val_cost = float("Inf")
 		if val_reward != float("Inf"):
 			
 			# Transform into cost:

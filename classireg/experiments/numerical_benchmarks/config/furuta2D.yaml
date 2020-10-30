@@ -48,16 +48,16 @@ plot:
   path: "./plots/toy_example" # This will automatically be appended to ${hydra.run.dir} by hydra
   block: False
 
-NBOiters: 5
-which_objective: "branin2D"
+NBOiters: 2
+which_objective: "furuta2D"
 with_noise: True
 Ninit_points:
   total: 1
   safe:
   unsafe:
 
-# cost_heur_high: 350.0 # Tight upper bound on the function seems to be 308.1291
-# cost_heur_low: 58.2957 # Value first evaluation -> Not lower because we would decrease the simple regret, thus favouring this case [0.6255, 0.5784]
+# cost_heur_high: 0.0 # Tight upper bound on the function seems to be -2.0232
+# cost_heur_low: -60.6966 # Value first evaluation -> Not lower because we would decrease the simple regret, thus favouring this case [0.5578, 0.0558]
 
 safety_mechanisms:
   use: True # [DO NOT SET THIS TO FALSE] Set this to True if we want the data to be saved at each iteration
@@ -67,4 +67,5 @@ safety_mechanisms:
   #   # nr_exp: "20200723160313"
   #   # nr_exp: "20200727111325"
   #   nr_exp: "20200729142504"
+
 

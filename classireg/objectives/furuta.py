@@ -12,15 +12,15 @@ import yaml
 import pdb
 from botorch.utils.sampling import draw_sobol_samples
 
-class QuadrupedObj():
+class FurutaObj():
 
-	def __init__(self,dim):
+	def __init__(self):
 		"""
 		
 		x_in domain: [-5.0 , +5.0]
 		
 		"""
-		self.dim = dim
+		self.dim = 2
 		self.cons_value = None
 
 	def collect_float_positive(self,which_fun):
@@ -50,6 +50,10 @@ class QuadrupedObj():
 		return aux
 
 	def collect_value_manual_input(self):
+		"""
+
+		Assume that g(x) returns binary observations
+		"""
 
 		values_are_correct = False
 		while not values_are_correct:
@@ -60,15 +64,16 @@ class QuadrupedObj():
 				aux = input(" * Was the experiment a failure or a success ? Type 'suc' or 'fail' : ")
 			is_stable = aux == "suc"
 			
-			val_cost = val_constraint = INF
+			# val_cost = val_constraint = INF
+			val_cost = INF
 			if is_stable:
 				val_cost = self.collect_float_positive(which_fun="f(x) (cost)")
-				val_constraint = self.collect_float_positive(which_fun="g(x) (constraint)")
+				# val_constraint = self.collect_float_positive(which_fun="g(x) (constraint)")
 
 			logger.info("Here is a summary of the values:")
-			logger.info("    Label:            {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
 			logger.info("    Cost value:       {0:5f}".format(val_cost))
-			logger.info("    constraint value: {0:5f}".format(val_constraint))
+			logger.info("    Label:            {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
+			# logger.info("    constraint value: {0:5f}".format(val_constraint))
 			logger.info("Are you ok to continue? If not, you'll be asked to enetr all numbers once more.")
 
 			while aux not in ["0","1"]:
@@ -77,7 +82,8 @@ class QuadrupedObj():
 			if aux == "1":
 				values_are_correct = True
 
-		return is_stable, val_cost, val_constraint
+		# return is_stable, val_cost, val_constraint
+		return is_stable, val_cost
 
 	def _parsing(self,x_in):
 		"""
@@ -87,57 +93,17 @@ class QuadrupedObj():
 
 		par = torch.zeros(x_in.shape[0])
 
-		# ------ 8D -----------------------------
-
-		# # kp_joint_min:
-		# par[0] = 1.0 + (2.0-1.0)*x_in[0] # hip
-		# par[1] = 1.0 + (2.0-1.0)*x_in[1] # knee
-
-		# # kp_joint_max:
-		# par[2] = 2.0 + (10.0-2.0)*x_in[2] # hip
-		# par[3] = 2.0 + (10.0-2.0)*x_in[3] # knee
-
-		# # kd_joint_min:
-		# par[4] = 0.03 + (0.08-0.03)*x_in[4] # hip
-		# par[5] = 0.03 + (0.08-0.03)*x_in[5] # knee
-
-		# # kd_joint_max:
-		# par[6] = 0.08 + (0.14-0.08)*x_in[6] # hip
-		# par[7] = 0.08 + (0.14-0.08)*x_in[7] # knee
-
-
-		# ------ 4D ----------------------------- (23 and 27 Jul 2020)
-
-		# kp_joint_max:
-		par[0] = 2.0 + (7.0-2.0)*x_in[0] # hip
-		par[1] = 2.0 + (7.0-2.0)*x_in[1] # knee
-
-		# # kd_joint_min (0-35 iters) -> 23 Jul 2020
-		# par[2] = 0.03 + (0.08-0.03)*x_in[2] # hip
-		# par[3] = 0.03 + (0.08-0.03)*x_in[3] # knee
-
-		# kd_joint_min (0-50 iters) -> 27 jul 2020
-		par[2] = 0.02 + (0.14-0.02)*x_in[2] # hip
-		par[3] = 0.02 + (0.14-0.02)*x_in[3] # knee
-
-
-		# ------ 5D ----------------------------- (29 Jul 2020)
-
-		# # kp_joint_max:
-		# par[0] = 1.5 + (5.0-1.5)*x_in[0] # hip
-		# par[1] = 1.5 + (5.0-1.5)*x_in[1] # knee
-
-		# # kd_joint_min:
-		# par[2] = 0.02 + (0.14-0.02)*x_in[2] # hip
-		# par[3] = 0.02 + (0.14-0.02)*x_in[3] # knee
-
-		# # Foot location:
-		# par[4] = 0.15 + (0.20-0.15)*x_in[4] # Foot location
+		# ------ 2D ---------------
+		par[0] = x_in[0] # K_\alpha
+		par[1] = x_in[1] # K_\theta
 
 		return par
 
 
 	def evaluate(self,x_in,with_noise=False):
+
+		print("[DBG]: Flip sign (!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)")
+
 
 		str_banner = " <<<< Collecting new evaluation >>>> "
 		logger.info("="*len(str_banner))
@@ -156,55 +122,30 @@ class QuadrupedObj():
 		# Domain transformation:
 		par = self._parsing(x_in)
 
-		# logger.info("")
-		# logger.info("Summary of gains")
-		# logger.info("================")
-		# logger.info(" ++++ KNEE ++++ ")
-		# logger.info("----------------")
-		# logger.info(" * P-GAIN:")
-		# logger.info("    Initial: {0:2.5f} | x[0]: {1:2.5f}".format(par[0],x_in[0]))
-		# logger.info("    Final:   {0:2.5f} | x[1]: {1:2.5f}".format(par[1],x_in[1]))
-		# logger.info(" * D-GAIN:")
-		# logger.info("    Initial: {0:2.5f} | x[2]: {1:2.5f}".format(par[2],x_in[2]))
-		# logger.info("    Final:   {0:2.5f} | x[3]: {1:2.5f}".format(par[3],x_in[3]))
-		# logger.info("")
-		# logger.info(" ++++ HIP ++++ ")
-		# logger.info("----------------")
-		# logger.info(" * P-GAIN:")
-		# logger.info("    Initial: {0:2.5f} | x[4]: {1:2.5f}".format(par[4],x_in[4]))
-		# logger.info("    Final:   {0:2.5f} | x[5]: {1:2.5f}".format(par[5],x_in[5]))
-		# logger.info(" * D-GAIN:")
-		# logger.info("    Initial: {0:2.5f} | x[6]: {1:2.5f}".format(par[6],x_in[6]))
-		# logger.info("    Final:   {0:2.5f} | x[7]: {1:2.5f}".format(par[7],x_in[7]))
-		# logger.info("")
-
 		logger.info("")
 		logger.info("Summary of gains")
 		logger.info("================")
-		# logger.info("kp_joint_min: [{0:2.4f} , {1:2.4f}]".format(par[0].item(),par[1].item()))
-		logger.info("kp_joint_max: [{0:2.4f} , {1:2.4f}]".format(par[0].item(),par[1].item()))
+		logger.info("K_alpha: {0:2.4f}".format(par[0].item()))
 		logger.info("")
-		logger.info("kd_joint_min: [{0:2.4f} , {1:2.4f}]".format(par[2].item(),par[3].item()))
-		# logger.info("kd_joint_max: [{0:2.4f} , {1:2.4f}]".format(par[6].item(),par[7].item()))
-		logger.info("")
-		logger.info("Foot location: {0:2.4f}".format(par[4].item()))
+		logger.info("K_theta: {0:2.4f}".format(par[1].item()))
 
 		# Request cost value:
-		is_stable, val_cost, val_constraint = self.collect_value_manual_input()
+		# is_stable, val_cost, val_constraint = self.collect_value_manual_input()
+		is_stable, val_cost = self.collect_value_manual_input()
 
 		# # Re-scaling if necessary:
-		if val_cost != float("Inf") and val_constraint != float("Inf"):
-			val_cost 				= -10.0 * val_cost + 8.0
-			val_constraint	= (val_constraint-60)/10.0 # Optimistic mean
+		if val_cost != float("Inf"):
+			# val_cost 				= -10.0 * val_cost + 8.0
+			# val_constraint	= (val_constraint-60)/10.0 # Optimistic mean
 			# val_constraint	= (val_constraint - 120.0)/10.0 # Pessimistic mean
 			logger.info("    [re-scaled] Cost value:       {0:2.4f}".format(val_cost))
-			logger.info("    [re-scaled] constraint value: {0:2.4f}".format(val_constraint))
+			# logger.info("    [re-scaled] constraint value: {0:2.4f}".format(val_constraint))
 
 		# Place -1.0 labels and INF to unstable values:
-		l_out = (+1.0)*is_stable + (-1.0)*(not is_stable)
+		val_constraint = (+1.0)*is_stable + (0.0)*(not is_stable)
 
 		# Assign constraint value (the constraint WalkerCons must be called immediately after):
-		self.cons_value = torch.tensor([[val_constraint, l_out]],device=device,dtype=dtype)
+		self.cons_value = torch.tensor([[INF,val_constraint]],device=device,dtype=dtype)
 		return torch.tensor([val_cost],device=device,dtype=dtype)
 
 	def error_checking_x_in(self,x_in):
@@ -223,11 +164,11 @@ class QuadrupedObj():
 
 	@staticmethod
 	def true_minimum():
-		x_gm = torch.tensor([[0.5]*4],device=device,dtype=dtype)
+		x_gm = torch.tensor([[0.5]*2],device=device,dtype=dtype)
 		f_gm = 0.0
 		return x_gm, f_gm
 
-class QuadrupedCons():
+class FurutaCons():
 	def __init__(self,obj_inst):
 		self.obj_inst = obj_inst
 	def evaluate(self,x_in,with_noise=False):
@@ -241,31 +182,20 @@ class QuadrupedCons():
 
 if __name__ == "__main__":
 
-	# dim = 8
-	# dim = 4
-	dim = 5
-	obj_fun = QuadrupedObj(dim=dim)
-	cons_fun = QuadrupedCons(obj_fun)
+	dim = 2
+	obj_fun = FurutaObj()
+	cons_fun = FurutaCons(obj_fun)
 
 	train_x = draw_sobol_samples(bounds=torch.tensor([[0.]*dim,[1.]*dim]),n=1,q=1).squeeze(1) # Get only unstable evaluations
-
-
-	# # 4D points:
-	# # train_x = torch.tensor([[3.3298e-01, 1.0000e+00, 4.5455e-01, 1.3440e-02]])
-	# train_x = torch.tensor([[0.6223, 0.9955, 0.4433, 0.5836]]) # Max height 2020 Jul 27, after 13:27 train_y_obj_min: tensor(0.1400)
-	# # train_x = torch.tensor([[0.7979372, 0.9929017, 0.71484804, 0.03631881]]) # Max height 2020 Jul 27, after 13:27 train_y_obj_min: tensor(0.1600)
-
-
-
 
 	val_cost = obj_fun(train_x)
 	val_constraint = cons_fun(train_x)
 	is_stable = val_constraint[0,1] == +1
 
 	logger.info("Entered values:")
-	logger.info("    Label:            {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
 	logger.info("    Cost value:       {0:5f}".format(val_cost.item()))
-	logger.info("    constraint value: {0:5f}".format(val_constraint[0,0]))
+	logger.info("    Label:            {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
+	# logger.info("    constraint value: {0:5f}".format(val_constraint[0,1]))
 	logger.info("Are you ok to continue? If not, you'll be asked to enetr all numbers once more.")
 
 

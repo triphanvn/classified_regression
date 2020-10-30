@@ -74,17 +74,17 @@ class GPClassifier(ApproximateGP):
 		# For compatibility:
 		self.threshold = torch.tensor([float("Inf")])
 
-		# Initialize hyperpriors using scipy because gpytorch's gamma and beta distributions do not have the inverse CDF
-		hyperpriors = dict(	lengthscales = eval(options.hyperpars.lenthscales.prior),
-												outputscale = eval(options.hyperpars.outputscale.prior))
+		# # Initialize hyperpriors using scipy because gpytorch's gamma and beta distributions do not have the inverse CDF
+		# hyperpriors = dict(	lengthscales = eval(options.hyperpars.lenthscales.prior),
+		# 										outputscale = eval(options.hyperpars.outputscale.prior))
 
-		# Index hyperparameters:
-		self.idx_hyperpars = dict(lengthscales=list(range(0,self.dim)) , outputscale=[self.dim] )
-		self.dim_hyperpars = sum( [ len(val) for val in self.idx_hyperpars.values() ] )
+		# # Index hyperparameters:
+		# self.idx_hyperpars = dict(lengthscales=list(range(0,self.dim)) , outputscale=[self.dim] )
+		# self.dim_hyperpars = sum( [ len(val) for val in self.idx_hyperpars.values() ] )
 
-		# Get bounds:
-		self.hyperpars_bounds = self._get_hyperparameters_bounds(hyperpriors)
-		logger.info("hyperpars_bounds:" + str(self.hyperpars_bounds))
+		# # Get bounds:
+		# self.hyperpars_bounds = self._get_hyperparameters_bounds(hyperpriors)
+		# logger.info("hyperpars_bounds:" + str(self.hyperpars_bounds))
 
 		# Initialize prior mean:
 		# self.mean_module = ConstantMean()
@@ -97,14 +97,21 @@ class GPClassifier(ApproximateGP):
 		self.disp_info_scipy_opti = True
 
 		# Get a hyperparameter sample within bounds (not the same as sampling from the corresponding priors):
-		hyperpars_sample = self._sample_hyperparameters_within_bounds(Nsamples=1).squeeze(0)
-		self.covar_module.outputscale = hyperpars_sample[self.idx_hyperpars["outputscale"]]
-		self.covar_module.base_kernel.lengthscale = hyperpars_sample[self.idx_hyperpars["lengthscales"]]
+		# hyperpars_sample = self._sample_hyperparameters_within_bounds(Nsamples=1).squeeze(0)
+		# self.covar_module.outputscale = hyperpars_sample[self.idx_hyperpars["outputscale"]]
+		# self.covar_module.base_kernel.lengthscale = hyperpars_sample[self.idx_hyperpars["lengthscales"]]
+		# self.noise_std = options.hyperpars.noise_std.value # The evaluation noise is fixed, and given by the user
+		# pdb.set_trace()
+		self.covar_module.outputscale = options.hyperpars.outputscale
+		self.covar_module.base_kernel.lengthscale = options.hyperpars.lengthscale
 		self.noise_std = options.hyperpars.noise_std.value # The evaluation noise is fixed, and given by the user
 
-		self.Nrestarts = options.hyperpars.optimization.Nrestarts
 
-		self._update_hyperparameters()
+
+		# self.Nrestarts = options.hyperpars.optimization.Nrestarts
+
+		# self._update_hyperparameters()
+		self.display_hyperparameters()
 
 		self.eval()
 		self.likelihood.eval()
@@ -158,51 +165,51 @@ class GPClassifier(ApproximateGP):
 			# print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iterations, loss.item()))
 			optimizer.step()
 
-	def _optimize_acqui_use_restarts_individually(self):
+	# def _optimize_acqui_use_restarts_individually(self):
 
-		# Get initial random restart points:
-		logger.info("  Generating random restarts ...")
-		options={"maxiter": 200,"ftol":1e-9,"method":"L-BFGS-B","iprint":2,"maxls":20,"disp":self.disp_info_scipy_opti}
-		bounds = torch.tensor(self.hyperpars_bounds,device=device,dtype=dtype)
-		initial_conditions = gen_batch_initial_conditions(acq_function=self.mll_objective,bounds=bounds,q=1,
-																num_restarts=self.Nrestarts,raw_samples=500, options=options)
+	# 	# Get initial random restart points:
+	# 	logger.info("  Generating random restarts ...")
+	# 	options={"maxiter": 200,"ftol":1e-9,"method":"L-BFGS-B","iprint":2,"maxls":20,"disp":self.disp_info_scipy_opti}
+	# 	bounds = torch.tensor(self.hyperpars_bounds,device=device,dtype=dtype)
+	# 	initial_conditions = gen_batch_initial_conditions(acq_function=self.mll_objective,bounds=bounds,q=1,
+	# 															num_restarts=self.Nrestarts,raw_samples=500, options=options)
 
-		logger.info("  Optimizing loss function with {0:d} restarts ...".format(self.Nrestarts))
-		new_hyperpars_many = torch.zeros(size=(self.Nrestarts,1,self.dim_hyperpars))
-		new_hyperpars_loss_many = torch.zeros(size=(self.Nrestarts,))
+	# 	logger.info("  Optimizing loss function with {0:d} restarts ...".format(self.Nrestarts))
+	# 	new_hyperpars_many = torch.zeros(size=(self.Nrestarts,1,self.dim_hyperpars))
+	# 	new_hyperpars_loss_many = torch.zeros(size=(self.Nrestarts,))
 
-		new_hyperpars, _ = self.opti_hyperpars.run_optimization(x_restarts=initial_conditions.view(self.Nrestarts,self.dim_hyperpars))
+	# 	new_hyperpars, _ = self.opti_hyperpars.run_optimization(x_restarts=initial_conditions.view(self.Nrestarts,self.dim_hyperpars))
 		
-		logger.info("  Done!")
+	# 	logger.info("  Done!")
 		
-		return new_hyperpars
+	# 	return new_hyperpars
 
-	def _get_hyperparameters_bounds(self,hyperpriors):
+	# def _get_hyperparameters_bounds(self,hyperpriors):
 
-		# Compute the domain for hyperparameter search by truncating the support of the corresponding hyperprior at the .75 quantile
-		# The lower bound is necessary for numerical stability, i.e., when computing logpdf() in classireg.models.mll_gpcr.log_marginal()
-		# All values of the dictionary are defined as double lists
-		hyperpriors_support = dict(	lengthscales=[[0.001]*self.dim,[hyperpriors["lengthscales"].ppf(.75)]*self.dim],
-																outputscale=[[0.001],[hyperpriors["outputscale"].ppf(.75)]])
+	# 	# Compute the domain for hyperparameter search by truncating the support of the corresponding hyperprior at the .75 quantile
+	# 	# The lower bound is necessary for numerical stability, i.e., when computing logpdf() in classireg.models.mll_gpcr.log_marginal()
+	# 	# All values of the dictionary are defined as double lists
+	# 	hyperpriors_support = dict(	lengthscales=[[0.001]*self.dim,[hyperpriors["lengthscales"].ppf(.75)]*self.dim],
+	# 															outputscale=[[0.001],[hyperpriors["outputscale"].ppf(.75)]])
 
-		# Automatically get the bounds from the dictionary:
-		hyperpars_lb = []
-		hyperpars_ub = []
-		for hyperpar in hyperpriors_support.values():
-			hyperpars_lb += hyperpar[0]
-			hyperpars_ub += hyperpar[1]
-		hyperpars_bounds = [hyperpars_lb, hyperpars_ub]
+	# 	# Automatically get the bounds from the dictionary:
+	# 	hyperpars_lb = []
+	# 	hyperpars_ub = []
+	# 	for hyperpar in hyperpriors_support.values():
+	# 		hyperpars_lb += hyperpar[0]
+	# 		hyperpars_ub += hyperpar[1]
+	# 	hyperpars_bounds = [hyperpars_lb, hyperpars_ub]
 
-		return hyperpars_bounds
+	# 	return hyperpars_bounds
 
-	def _sample_hyperparameters_within_bounds(self, Nsamples):
+	# def _sample_hyperparameters_within_bounds(self, Nsamples):
 
-		# Get a sample from the prior for initialization:
-		new_seed = torch.randint(low=0,high=100000,size=(1,)).item() # Top-level seeds have an impact on this one herein; contrary to the case new_seed = None
-		hyperpars_restarts = draw_sobol_samples(bounds=torch.tensor(self.hyperpars_bounds), n=Nsamples, q=1, seed=new_seed)
-		hyperpars_restarts = hyperpars_restarts.squeeze(1) # Remove batch dimension [n q dim] -> [n dim]
+	# 	# Get a sample from the prior for initialization:
+	# 	new_seed = torch.randint(low=0,high=100000,size=(1,)).item() # Top-level seeds have an impact on this one herein; contrary to the case new_seed = None
+	# 	hyperpars_restarts = draw_sobol_samples(bounds=torch.tensor(self.hyperpars_bounds), n=Nsamples, q=1, seed=new_seed)
+	# 	hyperpars_restarts = hyperpars_restarts.squeeze(1) # Remove batch dimension [n q dim] -> [n dim]
 
-		return hyperpars_restarts
+	# 	return hyperpars_restarts
 
 	def forward(self, x):
 

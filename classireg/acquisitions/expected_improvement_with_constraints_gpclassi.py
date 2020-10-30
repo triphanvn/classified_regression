@@ -20,7 +20,7 @@ from botorch.models import ModelListGP
 from classireg.models import GPmodel, GPClassifier
 from scipy.stats import norm
 dist_standnormal = Normal(loc=0.0,scale=1.0)
-from classireg.utils.optimize import ConstrainedOptimizationNonLinearConstraints, OptimizationNonLinear
+# from classireg.utils.optimize import ConstrainedOptimizationNonLinearConstraints, OptimizationNonLinear
 from botorch.utils.sampling import draw_sobol_samples
 from botorch.optim.initializers import gen_batch_initial_conditions
 from botorch.gen import gen_candidates_scipy
@@ -44,20 +44,21 @@ class ExpectedImprovementWithConstraintsClassi():
 		self.model_list = model_list
 
 		self.dim = dim
-		self.Nrestarts = options.optimization.Nrestarts
-		self.algo_name = options.optimization.algo_name
-		self.constrained_opt = OptimizationNonLinear(	dim=self.dim,
-																									fun_obj=self.forward,
-																									algo_str=self.algo_name,
-																									bounds=[ [0.0]*self.dim, [1.0]*self.dim ],
-																									minimize=False,
-																									what2optimize_str="EIC acquisition")
+		# self.Nrestarts = options.optimization.Nrestarts
+		# self.algo_name = options.optimization.algo_name
+		self.Ndiv_per_dim = options.optimization.Ndiv_per_dim
+		# self.constrained_opt = OptimizationNonLinear(	dim=self.dim,
+		# 																							fun_obj=self.forward,
+		# 																							algo_str=self.algo_name,
+		# 																							bounds=[ [0.0]*self.dim, [1.0]*self.dim ],
+		# 																							minimize=False,
+		# 																							what2optimize_str="EIC acquisition")
 
 		# This is needed to 
 		self.model_list[idxm['cons']](torch.randn(size=(1,1,self.dim)))
 
 		# self.use_nlopt = False
-		self.disp_info_scipy_opti = options.optimization.disp_info_scipy_opti
+		# self.disp_info_scipy_opti = options.optimization.disp_info_scipy_opti
 
 		# self._rho_conserv = options.prob_satisfaction
 		self.x_next, self.alpha_next = None, None
@@ -193,14 +194,6 @@ class ExpectedImprovementWithConstraintsClassi():
 			self.eta_c = torch.zeros(1,device=device,dtype=dtype)
 			self.x_eta_c = torch.zeros((1,self.dim),device=device,dtype=dtype)
 
-			
-			# # The following functions need to be called in the given order:
-			# try:
-			# 	self.update_eta_c(rho_t=self.rho_conserv) # Update min_x mu(x|D) s.t. Pr(g(x) <= 0) > rho_t
-			# except Exception as inst:
-			# 	logger.info("Exception (!) type: {0:s} | args: {1:s}".format(str(type(inst)),str(inst.args)))
-			# 	logger.info("Not optimizing eta_c ...")
-
 			# self.best_f = self.eta_c
 			self.best_f = self.get_best_constrained_evaluation() - self.model_list[idxm["obj"]].likelihood.noise.sqrt()[0].view(1)
 			self.only_prob = False
@@ -222,23 +215,49 @@ class ExpectedImprovementWithConstraintsClassi():
 
 	def get_acqui_fun_maximizer(self):
 
-		logger.info("Computing next candidate by maximizing the acquisition function ...")
-		options = {"batch_limit": 50,"maxiter": 300,"ftol":1e-6,"method":"L-BFGS-B","iprint":2,"maxls":20,"disp":self.disp_info_scipy_opti}
+		if self.dim == 2:
+			"""
 
-		# Get initial random restart points:
-		logger.info("Generating random restarts ...")
-		initial_conditions = gen_batch_initial_conditions(acq_function=self,bounds=self.bounds,q=1,num_restarts=self.Nrestarts,raw_samples=500, options=options)
-		# logger.info("initial_conditions:" + str(initial_conditions))
+			Special case, to be used within GoSafe
+			"""
 
-		logger.info("Using nlopt ...")
-		x_next, alpha_next = self.constrained_opt.run_optimization(initial_conditions.view((self.Nrestarts,self.dim)))
+			# Grid the 2D space (assume unit plane):
+			xmin = 0.0
+			xmax = 1.0
+			xpred = torch.linspace(xmin,xmax,self.Ndiv_per_dim)
+			X1grid, X2grid = torch.meshgrid(*([xpred]*2))
+			Xpred = torch.cat([X1grid.reshape(-1,1),X2grid.reshape(-1,1)],1)
 
-		# # TODO: Is this really needed?
-		# prob_val = self.get_probability_of_safe_evaluation(x_next.unsqueeze(1))
-		# if prob_val < self.rho_conserv:
-		# 	logger.info("(Is this really needed????) x_next violates the probabilistic constraint...")
-		# 	pdb.set_trace()
-		
+			# Compute acquisition function on each point:
+			acqui_points = self.forward(Xpred)
+
+			# Compute the maximum:
+			ind_max = torch.argmax(acqui_points[0,:])
+			x_next = Xpred[ind_max,:]
+			x_next = x_next.view((1,self.dim))
+			alpha_next = acqui_points[0,ind_max]
+
+		else:
+
+			logger.info("Computing next candidate by maximizing the acquisition function ...")
+			options = {"batch_limit": 50,"maxiter": 300,"ftol":1e-6,"method":"L-BFGS-B","iprint":2,"maxls":20,"disp":self.disp_info_scipy_opti}
+
+			# Get initial random restart points:
+			logger.info("Generating random restarts ...")
+			initial_conditions = gen_batch_initial_conditions(acq_function=self,bounds=self.bounds,q=1,num_restarts=self.Nrestarts,raw_samples=500, options=options)
+			# logger.info("initial_conditions:" + str(initial_conditions))
+
+			logger.info("Using nlopt ...")
+			x_next, alpha_next = self.constrained_opt.run_optimization(initial_conditions.view((self.Nrestarts,self.dim)))
+
+			# # TODO: Is this really needed?
+			# prob_val = self.get_probability_of_safe_evaluation(x_next.unsqueeze(1))
+			# if prob_val < self.rho_conserv:
+			# 	logger.info("(Is this really needed????) x_next violates the probabilistic constraint...")
+			# 	pdb.set_trace()
+
+			# pdb.set_trace()
+			
 		logger.info("Done!")
 
 		return x_next, alpha_next

@@ -34,7 +34,7 @@ def main(cfg: DictConfig) -> None:
             run(cfg, rep_nr)
 
         # Convert data to a single file:
-        if cfg.which_objective != "simple1D" and cfg.which_objective != "quadruped8D":
+        if cfg.which_objective != "simple1D" and cfg.which_objective != "quadruped8D" and cfg.which_objective != "furuta2D" and cfg.which_objective != "branin2D":
             time.sleep(1.0) # Give some time for writing into the yaml files
             convert_from_cluster_data_to_single_file(which_obj=cfg.which_objective,which_acqui=cfg.acqui,Nrepetitions=cfg.Nend)
 

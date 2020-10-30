@@ -10,7 +10,7 @@ import pdb
 from classireg.utils.parsing import get_logger
 import shutil
 logger = get_logger(__name__)
-obj_fun_list = ["hart6D","micha10D","simple1D","branin2D","camel2D","eggs2D","walker","shubert4D","debug6D","quadruped8D"]
+obj_fun_list = ["hart6D","micha10D","simple1D","branin2D","camel2D","eggs2D","walker","shubert4D","debug6D","quadruped8D","furuta2D"]
 algo_list_cons = ["EIC","EI","EI_heur_high","EI_heur_low","EIClassi"]
 
 def generate_folder_at_path(my_path,create_folder=True):
@@ -22,7 +22,7 @@ def generate_folder_at_path(my_path,create_folder=True):
 	path2folder = my_path + today.strftime('/%Y%m%d%H%M%S')
 
 	if create_folder == True:
-		os.mkdir(path2folder)
+		os.makedirs(path2folder)
 
 	return path2folder
 

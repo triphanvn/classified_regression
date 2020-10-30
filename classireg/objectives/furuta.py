@@ -64,14 +64,14 @@ class FurutaObj():
 				aux = input(" * Was the experiment a failure or a success ? Type 'suc' or 'fail' : ")
 			is_stable = aux == "suc"
 			
-			# val_cost = val_constraint = INF
-			val_cost = INF
+			# val_reward = val_constraint = INF
+			val_reward = INF
 			if is_stable:
-				val_cost = self.collect_float_positive(which_fun="f(x) (cost)")
+				val_reward = self.collect_float_positive(which_fun="f(x) (cost)")
 				# val_constraint = self.collect_float_positive(which_fun="g(x) (constraint)")
 
 			logger.info("Here is a summary of the values:")
-			logger.info("    Cost value:       {0:5f}".format(val_cost))
+			logger.info("    Cost value:       {0:5f}".format(val_reward))
 			logger.info("    Label:            {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
 			# logger.info("    constraint value: {0:5f}".format(val_constraint))
 			logger.info("Are you ok to continue? If not, you'll be asked to enetr all numbers once more.")
@@ -82,8 +82,8 @@ class FurutaObj():
 			if aux == "1":
 				values_are_correct = True
 
-		# return is_stable, val_cost, val_constraint
-		return is_stable, val_cost
+		# return is_stable, val_reward, val_constraint
+		return is_stable, val_reward
 
 	def _parsing(self,x_in):
 		"""
@@ -101,9 +101,6 @@ class FurutaObj():
 
 
 	def evaluate(self,x_in,with_noise=False):
-
-		print("[DBG]: Flip sign (!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)")
-
 
 		str_banner = " <<<< Collecting new evaluation >>>> "
 		logger.info("="*len(str_banner))
@@ -130,16 +127,19 @@ class FurutaObj():
 		logger.info("K_theta: {0:2.4f}".format(par[1].item()))
 
 		# Request cost value:
-		# is_stable, val_cost, val_constraint = self.collect_value_manual_input()
-		is_stable, val_cost = self.collect_value_manual_input()
+		# is_stable, val_reward, val_constraint = self.collect_value_manual_input()
+		is_stable, val_reward = self.collect_value_manual_input()
 
 		# # Re-scaling if necessary:
-		if val_cost != float("Inf"):
-			# val_cost 				= -10.0 * val_cost + 8.0
-			# val_constraint	= (val_constraint-60)/10.0 # Optimistic mean
-			# val_constraint	= (val_constraint - 120.0)/10.0 # Pessimistic mean
-			logger.info("    [re-scaled] Cost value:       {0:2.4f}".format(val_cost))
+		if val_reward != float("Inf"):
+			
+			# Transform into cost:
+			val_cost = -val_reward
+
+			logger.info("    [re-scaled] Reward value:       {0:2.4f}".format(val_reward))
+			logger.info("    [re-scaled] Cost value:       {0:2.4f} (this is the one that EIC will receive)".format(val_cost))
 			# logger.info("    [re-scaled] constraint value: {0:2.4f}".format(val_constraint))
+
 
 		# Place -1.0 labels and INF to unstable values:
 		val_constraint = (+1.0)*is_stable + (0.0)*(not is_stable)

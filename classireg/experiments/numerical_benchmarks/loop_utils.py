@@ -42,25 +42,57 @@ def get_initial_evaluations(which_objective,function_obj,function_cons,cfg_Ninit
 
     assert which_objective in obj_fun_list, "Objective function <which_objective> must be {0:s}".format(str(obj_fun_list))
 
-    # Get initial evaluation:
-    if which_objective == "branin2D":
-        train_x = torch.tensor([[0.6255, 0.5784]])
+    load_from_file = True
+    if load_from_file:
 
-    if which_objective == "furuta2D":
-        train_x = torch.tensor([[0.6255, 0.5784]])
+        import yaml
+        nr_exp = "20201030190214"
+        print("Loading data from file: {0:s}".format(nr_exp))
+        if which_objective == "furuta2D":
 
-    # Evaluate objective and constraint(s):
-    # NOTE: Do NOT change the order!!
+            # Open corresponding file to the wanted results:
+            path2data = "./{0:s}/{1:s}_results/{2:s}/data_0.yaml".format(which_objective,"EIClassi",nr_exp)
+            print("Loading {0:s} ...".format(path2data))
+            stream  = open(path2data, "r")
+            my_node = yaml.load(stream,Loader=yaml.Loader)
+            stream.close()
 
-    # Get initial evaluations in f(x):
-    train_y_obj = function_obj(train_x,with_noise=with_noise)
 
-    # Get initial evaluations in g(x):
-    train_x_cons = train_x
-    train_yl_cons = function_cons(train_x_cons,with_noise=False)
+            train_x = torch.from_numpy(my_node["GPs"][0]['train_inputs']).to(dtype=dtype,device=device)
+            train_x_cons = train_x
+            train_y_obj = torch.from_numpy(my_node["GPs"][0]['train_targets']).to(dtype=dtype,device=device)
+            Ycons = torch.from_numpy(my_node["GPs"][1]['train_targets']).to(dtype=dtype,device=device)
+            train_yl_cons = torch.cat([ float("Inf")*torch.ones((Ycons.shape[0],1)) , Ycons.view(-1,1)],1)
 
-    # Check that the initial point is stable in micha10D:
-    # pdb.set_trace()
+            # print("train_x = train_x_cons",train_x)
+            # print("train_y_obj",train_y_obj)
+            # print("train_yl_cons",train_yl_cons)
+
+            print("train_x.shape = train_x_cons.shape",train_x.shape)
+            print("train_y_obj.shape",train_y_obj.shape)
+            print("train_yl_cons.shape",train_yl_cons.shape)
+
+        else:
+            raise NotImplementedError
+
+    else:
+
+        # Get initial evaluation:
+        if which_objective == "branin2D":
+            train_x = torch.tensor([[0.6255, 0.5784]])
+
+        if which_objective == "furuta2D":
+            train_x = torch.tensor([[0.6255, 0.5784]])
+
+        # Evaluate objective and constraint(s):
+        # NOTE: Do NOT change the order!!
+
+        # Get initial evaluations in f(x):
+        train_y_obj = function_obj(train_x,with_noise=with_noise)
+
+        # Get initial evaluations in g(x):
+        train_x_cons = train_x
+        train_yl_cons = function_cons(train_x_cons,with_noise=False)
 
     # Get rid of those train_y_obj for which the constraint is violated:
     train_y_obj = train_y_obj[train_yl_cons[:,1] == +1]

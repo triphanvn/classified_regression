@@ -71,7 +71,7 @@ class GPClassifier(ApproximateGP):
 		noise_std = options.hyperpars.noise_std.value
 		self.likelihood = BernoulliLikelihood()
 
-		# For compatibility:
+		# For compatibility (but not used):
 		self.threshold = torch.tensor([float("Inf")])
 
 		# # Initialize hyperpriors using scipy because gpytorch's gamma and beta distributions do not have the inverse CDF
@@ -87,8 +87,8 @@ class GPClassifier(ApproximateGP):
 		# logger.info("hyperpars_bounds:" + str(self.hyperpars_bounds))
 
 		# Initialize prior mean:
-		# self.mean_module = ConstantMean()
-		self.mean_module = ZeroMean()
+		self.mean_module = ConstantMean() # Now
+		# self.mean_module = ZeroMean() # Before
 
 		# Initialize covariance function:
 		base_kernel = MaternKernel(nu=2.5,ard_num_dims=self.dim,lengthscale=0.1*torch.ones(self.dim))
@@ -113,8 +113,8 @@ class GPClassifier(ApproximateGP):
 		# self._update_hyperparameters()
 		self.display_hyperparameters()
 
-		self.eval()
-		self.likelihood.eval()
+		# self.eval()
+		# self.likelihood.eval()
 
 		# pdb.set_trace()
 

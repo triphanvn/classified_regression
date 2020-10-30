@@ -133,8 +133,9 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
                     train_y_obj_new   = torch.cat([gp_obj.train_targets, y_new_obj])
             
             # pdb.set_trace()
-            train_x_cons_new  = torch.cat([gp_cons.train_x, x_new_cons])
-            train_yl_cons_new = torch.cat([gp_cons.train_yl, yl_new_cons.view(1,2)], dim=0)
+            fac_incre = 1
+            train_x_cons_new  = torch.cat([gp_cons.train_x, x_new_cons]*fac_incre)
+            train_yl_cons_new = torch.cat([gp_cons.train_yl, yl_new_cons.view(1,2)]*fac_incre, dim=0)
 
             # Load GP model for f(x) and fit hyperparameters:
             gp_obj = GPmodel(dim=dim, train_X=train_x_obj_new, train_Y=train_y_obj_new.view(-1), options=cfg.gpmodel)
@@ -149,7 +150,25 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
                 train_yl_cons_new[ind_safe,1] = +1
                 train_yl_cons_new[~ind_safe,1] = 0
 
+
                 gp_cons = GPClassifier(dim=dim, train_X=train_x_cons_new.clone(), train_Y=train_yl_cons_new[:,1].clone(), options=cfg.gpclassimodel)
+
+
+                # As in https://docs.gpytorch.ai/en/v1.2.1/examples/04_Variational_and_Approximate_GPs/Non_Gaussian_Likelihoods.html
+                gp_cons.train()
+                gp_cons.likelihood.train()
+
+                gp_cons.eval()
+                gp_cons.likelihood.eval()
+
+                # Debugging:
+                # test_x = torch.tensor([[0.9293, 0.3535]])
+                # test_x = torch.tensor([[0.8788, 0.3333]])
+                # test_x = torch.tensor([[0.91919196, 0.36363637]])
+                # observed_pred = gp_cons.likelihood(gp_cons(test_x))
+                # print(observed_pred.mean.ge(0.5).float())
+                # pdb.set_trace()
+
             elif cfg.acqui == "EIC":
                 try:
                     gp_cons = GPCRmodel(dim=dim, train_x=train_x_cons_new.clone(), train_yl=train_yl_cons_new.clone(), options=cfg.gpcr_model)
@@ -170,6 +189,11 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
                 model_list = [gp_obj,gp_cons]
                 eic = ExpectedImprovementWithConstraintsClassi(dim=dim, model_list=model_list, options=cfg.acquisition_function)
 
+
+            # eic._compute_prob_feas(torch.tensor([[0.9293, 0.3535]]))
+            # eic._compute_prob_feas(torch.tensor([[0.8586, 0.3131]]))
+            
+            # pdb.set_trace()
 
             logvars["GPs"] = [gp_obj.logging(), gp_cons.logging()]
 

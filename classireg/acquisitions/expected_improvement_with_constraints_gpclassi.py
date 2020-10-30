@@ -232,10 +232,13 @@ class ExpectedImprovementWithConstraintsClassi():
 			acqui_points = self.forward(Xpred)
 
 			# Compute the maximum:
-			ind_max = torch.argmax(acqui_points[0,:])
+			# ind_max = torch.argmax(acqui_points[0,:])
+			acqui_points = acqui_points.view(-1)
+			ind_max = torch.argmax(acqui_points)
 			x_next = Xpred[ind_max,:]
 			x_next = x_next.view((1,self.dim))
-			alpha_next = acqui_points[0,ind_max]
+			alpha_next = acqui_points[ind_max]
+			# pdb.set_trace()
 
 		else:
 
@@ -268,7 +271,8 @@ class ExpectedImprovementWithConstraintsClassi():
 
 		# if "BernoulliLikelihood" in repr(self.model_list.models[idxm['cons']].likelihood): # GPClassi
 		mvn_cons = self.model_list[idxm['cons']](X)
-		prob_feas = self.model_list[idxm['cons']].likelihood(mvn_cons).mean
+		# prob_feas = self.model_list[idxm['cons']].likelihood(mvn_cons).mean
+		prob_feas = self.model_list[idxm['cons']].likelihood(mvn_cons).mean.ge(0.5).float() # As in https://docs.gpytorch.ai/en/v1.2.1/examples/04_Variational_and_Approximate_GPs/Non_Gaussian_Likelihoods.html
 		# 	# print("prob_feas:",prob_feas)
 		# else: # GPCR
 		# 	prob_feas = super()._compute_prob_feas(X=X, means=means, sigmas=sigmas)

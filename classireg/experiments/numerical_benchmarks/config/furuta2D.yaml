@@ -4,8 +4,8 @@
 ## Standard GP parameters
 gpmodel:
   hyperpars:
-    lengthscale: 0.1
-    outputscale: 1.0
+    lengthscale: 0.01
+    outputscale: 2.24
     noise_std: 
       value: 0.01 # Homoscedastic noise, standard deviation
     # optimization:
@@ -20,7 +20,7 @@ gpmodel:
 gpclassimodel:
   hyperpars:
     lengthscale: 0.1
-    outputscale: 1.0
+    outputscale: 0.45
     noise_std: 
       value: 0.01 # Homoscedastic noise, standard deviation
     # optimization:
@@ -34,7 +34,7 @@ gpclassimodel:
 ## Optimize acquisition function
 acquisition_function:
   optimization:
-    Ndiv_per_dim: 60
+    Ndiv_per_dim: 100
     # Nrestarts: 10
     # # Nrestarts: 1
     # # algo_name: 'LN_COBYLA' # Internally, the name is appended to 'nlopt.', e.g., 'nlopt.LN_COBYLA'. See https://nlopt.readthedocs.io/en/latest/NLopt_Python_Reference/
@@ -48,7 +48,7 @@ plot:
   path: "./plots/toy_example" # This will automatically be appended to ${hydra.run.dir} by hydra
   block: False
 
-NBOiters: 2
+NBOiters: 2000
 which_objective: "furuta2D"
 with_noise: True
 Ninit_points:

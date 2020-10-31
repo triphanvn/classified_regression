@@ -59,6 +59,7 @@ class ExpectedImprovementWithConstraintsClassi():
 
 		# self.use_nlopt = False
 		# self.disp_info_scipy_opti = options.optimization.disp_info_scipy_opti
+		self.penalization_failed_controller = self.model_list[idxm['cons']].penalization_failed_controller
 
 		# self._rho_conserv = options.prob_satisfaction
 		self.x_next, self.alpha_next = None, None
@@ -74,7 +75,7 @@ class ExpectedImprovementWithConstraintsClassi():
 
 		Ycons = self.model_list[idxm['cons']].train_targets
 
-		N_Ycons_safe = torch.sum(Ycons == +1)
+		N_Ycons_safe = torch.sum(Ycons > 0.0)
 
 		Yobj_safe = self.model_list[idxm['obj']].train_targets # Since we don't include the non-stable evaluations in the objective GP, the safe evaluations are the evaluations themselves
 		if N_Ycons_safe == 0 and Yobj_safe is None: # No safe points, but obj has no evaluations at all either
@@ -172,7 +173,7 @@ class ExpectedImprovementWithConstraintsClassi():
 
 		# pdb.set_trace()
 		Ycons = self.model_list[idxm['cons']].train_targets
-		Ycons_safe = Ycons[Ycons == +1]
+		Ycons_safe = Ycons[Ycons > 0]
 		Yobj_safe = self.model_list[idxm['obj']].train_targets # Since we don't include the non-stable evaluations in GPCR, the safe evaluations are the evaluations themselves
 		if len(Ycons_safe) > 0 and Yobj_safe is None:
 			raise ValueError("This case should not happen (!) We assume that objective evaluations are only collected when the contraint is satisfied...")
@@ -195,6 +196,7 @@ class ExpectedImprovementWithConstraintsClassi():
 			self.x_eta_c = torch.zeros((1,self.dim),device=device,dtype=dtype)
 
 			# self.best_f = self.eta_c
+			# pdb.set_trace()
 			self.best_f = self.get_best_constrained_evaluation() - self.model_list[idxm["obj"]].likelihood.noise.sqrt()[0].view(1)
 			self.only_prob = False
 
@@ -267,12 +269,20 @@ class ExpectedImprovementWithConstraintsClassi():
 
 	def _compute_prob_feas(self, X):
 
+
+
+		mean = self.model_list[idxm['cons']](X).mean
+		std = self.model_list[idxm['cons']](X).stddev
 		# pdb.set_trace()
 
+		normal_dist = torch.distributions.normal.Normal(loc=mean,scale=std)
+		prob_feas = 1.0 - normal_dist.cdf(0.0)
+
 		# if "BernoulliLikelihood" in repr(self.model_list.models[idxm['cons']].likelihood): # GPClassi
-		mvn_cons = self.model_list[idxm['cons']](X)
+		# mvn_cons = self.model_list[idxm['cons']](X)
 		# prob_feas = self.model_list[idxm['cons']].likelihood(mvn_cons).mean
-		prob_feas = self.model_list[idxm['cons']].likelihood(mvn_cons).mean.ge(0.5).float() # As in https://docs.gpytorch.ai/en/v1.2.1/examples/04_Variational_and_Approximate_GPs/Non_Gaussian_Likelihoods.html
+		# pdb.set_trace()
+		# prob_feas = self.model_list[idxm['cons']].likelihood(mvn_cons).mean.ge(0.5).float() # As in https://docs.gpytorch.ai/en/v1.2.1/examples/04_Variational_and_Approximate_GPs/Non_Gaussian_Likelihoods.html
 		# 	# print("prob_feas:",prob_feas)
 		# else: # GPCR
 		# 	prob_feas = super()._compute_prob_feas(X=X, means=means, sigmas=sigmas)

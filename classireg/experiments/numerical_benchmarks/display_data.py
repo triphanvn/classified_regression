@@ -48,13 +48,14 @@ def get_exp_nr_from_file(which_obj,which_acqui):
 
 if __name__ == "__main__":
 
-	which_obj="furuta2D"
-	which_acqui="EIClassi"
+	which_obj = "furuta2D"
+	which_acqui = "EIClassi"
 
 	nr_exp = get_exp_nr_from_file(which_obj,which_acqui)
 
 	# Open corresponding file to the wanted results:
-	path2data = "./{0:s}/{1:s}_results/{2:s}/data_0.yaml".format(which_obj,which_acqui,nr_exp)
+	# path2data = "./{0:s}/{1:s}_results/{2:s}/data_0.yaml".format(which_obj,which_acqui,nr_exp)
+	path2data = "./{0:s}/{1:s}_results/{2:s}/data_0_bis.yaml".format(which_obj,which_acqui,nr_exp)
 	print("Loading {0:s} ...".format(path2data))
 	stream 	= open(path2data, "r")
 	my_node = yaml.load(stream,Loader=yaml.Loader)
@@ -71,6 +72,13 @@ if __name__ == "__main__":
 	print("X_selected.shape:",X_selected.shape)
 	print("Yobj_selected.shape:",Yobj_selected.shape)
 	print("Ycons_selected.shape:",Ycons_selected.shape)
+
+	print("Nfailures:",np.sum(Ycons_selected == 0.0))
+	print("Niters:",Ycons_selected.shape[0])
+	print("std(Ycons_selected):",np.std(Ycons_selected))
+
+
+	# pdb.set_trace()
 
 
 

@@ -5,6 +5,7 @@
 gpmodel:
   hyperpars:
     lengthscale: 0.01
+    # lengthscale: 0.1 # DBG
     outputscale: 2.24
     noise_std: 
       value: 0.01 # Homoscedastic noise, standard deviation
@@ -15,6 +16,7 @@ gpmodel:
     #   algo_name: 'LN_BOBYQA'
     #   Nmax_evals: 200 # Max number of function evaluations
   # discard_too_close_points: False
+  penalization_failed_controller: "None"
 
 ## Standard GP parameters
 gpclassimodel:
@@ -30,6 +32,7 @@ gpclassimodel:
     #   algo_name: 'LN_BOBYQA'
     #   Nmax_evals: 200 # Max number of function evaluations
   # discard_too_close_points: False
+  penalization_failed_controller: -2.0 # This has to be a negative value
 
 ## Optimize acquisition function
 acquisition_function:
@@ -48,7 +51,7 @@ plot:
   path: "./plots/toy_example" # This will automatically be appended to ${hydra.run.dir} by hydra
   block: False
 
-NBOiters: 2000
+NBOiters: 300
 which_objective: "furuta2D"
 with_noise: True
 Ninit_points:

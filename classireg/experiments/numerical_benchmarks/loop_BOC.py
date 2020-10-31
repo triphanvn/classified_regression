@@ -38,24 +38,30 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
             my_path = "./{0:s}/{1:s}_results".format(cfg.which_objective,cfg.acqui)
             path2data = generate_folder_at_path(my_path,create_folder=True)
 
-            train_x_obj, train_y_obj, train_x_cons, train_yl_cons = get_initial_evaluations(which_objective=cfg.which_objective,
+            train_x_obj, train_y_obj, train_x_cons, train_y_cons = get_initial_evaluations(which_objective=cfg.which_objective,
                                                                                         function_obj=function_obj,
                                                                                         function_cons=function_cons,
                                                                                         cfg_Ninit_points=cfg.Ninit_points,
-                                                                                        with_noise=cfg.with_noise)
+                                                                                        with_noise=cfg.with_noise,
+                                                                                        constraint_penalization=cfg.gpclassimodel.penalization_failed_controller)
 
     # pdb.set_trace()
     gp_obj = GPmodel(dim=dim, train_X=train_x_obj, train_Y=train_y_obj.view(-1), options=cfg.gpmodel)
     if cfg.acqui == "EIC":
+        raise
         gp_cons = GPCRmodel(dim=dim, train_x=train_x_cons.clone(), train_yl=train_yl_cons.clone(), options=cfg.gpcr_model)
     elif cfg.acqui == "EIClassi":
-        ind_safe = train_yl_cons[:,1] == +1
-        train_yl_cons[ind_safe,1] = +1
-        train_yl_cons[~ind_safe,1] = 0
-        gp_cons = GPClassifier(dim=dim, train_X=train_x_cons.clone(), train_Y=train_yl_cons[:,1].clone(), options=cfg.gpclassimodel)
+
+        ind_safe = ~torch.isinf(train_y_cons)
+        train_y_cons[~ind_safe] = cfg.gpclassimodel.penalization_failed_controller
+        print(" <<-->> Initial constraint observation(s): ",train_y_cons)
+
+        gp_cons = GPmodel(dim=dim, train_X=train_x_cons.clone(), train_Y=train_y_cons.clone(), options=cfg.gpclassimodel)
+        # gp_cons = GPClassifier(dim=dim, train_X=train_x_cons.clone(), train_Y=train_yl_cons[:,1].clone(), options=cfg.gpclassimodel)
 
 
     if cfg.acqui == "EIC":
+        raise
         constraints = {1: (None, gp_cons.threshold )}
         model_list = ModelListGP(gp_obj,gp_cons)
         eic = ExpectedImprovementWithConstraints(model_list=model_list, constraints=constraints, options=cfg.acquisition_function)
@@ -104,17 +110,19 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
                                                                                             xnext=x_next,alpha_next=alpha_next)
 
             # Logging:
-            append_logging_variables(logvars,eic.eta_c,eic.x_eta_c,x_next,alpha_next,regret_simple,gp_cons.threshold)
+            append_logging_variables(logvars,eic.eta_c,eic.x_eta_c,x_next,alpha_next,regret_simple)
             # pdb.set_trace()
 
             # Collect evaluation at xnext:
             y_new_obj   = function_obj(x_next,with_noise=cfg.with_noise)
             # yl_new_cons  = function_cons(x_next,with_noise=cfg.with_noise)
-            yl_new_cons  = function_cons(x_next,with_noise=False)
+            y_new_cons  = function_cons(x_next,with_noise=False)
 
             x_new_cons = x_next
-            x_new_obj = x_new_cons[yl_new_cons[:,1] == +1.0,:]
-            y_new_obj = y_new_obj[yl_new_cons[:,1] == +1.0]
+            ind_safe_new = ~torch.isinf(y_new_cons)
+            x_new_obj = x_new_cons[ind_safe_new,:]
+            y_new_obj = y_new_obj[ind_safe_new]
+            # pdb.set_trace()
 
             # Update GP model:
             if len(y_new_obj) == 0: # If there's no new data
@@ -132,26 +140,28 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
                     train_x_obj_new   = torch.cat([gp_obj.train_inputs[0], x_new_obj])
                     train_y_obj_new   = torch.cat([gp_obj.train_targets, y_new_obj])
             
+            # Parse new constraint observation into the heuristic value:
+            y_new_cons[~ind_safe_new] = cfg.gpclassimodel.penalization_failed_controller
+            print(" <<-->> New constraint observation: ",y_new_cons)
+
             # pdb.set_trace()
-            fac_incre = 1
-            train_x_cons_new  = torch.cat([gp_cons.train_x, x_new_cons]*fac_incre)
-            train_yl_cons_new = torch.cat([gp_cons.train_yl, yl_new_cons.view(1,2)]*fac_incre, dim=0)
+            train_x_cons_new  = torch.cat([gp_cons.train_inputs[0], x_new_cons])
+            train_y_cons_new = torch.cat([gp_cons.train_targets, y_new_cons.view(1)], dim=0)
 
             # Load GP model for f(x) and fit hyperparameters:
             gp_obj = GPmodel(dim=dim, train_X=train_x_obj_new, train_Y=train_y_obj_new.view(-1), options=cfg.gpmodel)
 
             # Load GPCR model for g(x) and fit hyperparameters:
-            gp_cons_train_x_backup = gp_cons.train_x.clone()
-            gp_cons_train_yl_backup = gp_cons.train_yl.clone()
+            gp_cons_train_x_backup = gp_cons.train_inputs[0].clone()
+            gp_cons_train_yl_backup = gp_cons.train_targets.clone()
 
             if cfg.acqui == "EIClassi":
 
-                ind_safe = train_yl_cons_new[:,1] == +1
-                train_yl_cons_new[ind_safe,1] = +1
-                train_yl_cons_new[~ind_safe,1] = 0
+                # ind_safe = train_y_cons_new > 0.0
+                # # train_y_cons_new[ind_safe] = -cfg.gpclassimodel.penalization_failed_controller
+                # train_y_cons_new[~ind_safe] = cfg.gpclassimodel.penalization_failed_controller
 
-
-                gp_cons = GPClassifier(dim=dim, train_X=train_x_cons_new.clone(), train_Y=train_yl_cons_new[:,1].clone(), options=cfg.gpclassimodel)
+                gp_cons = GPmodel(dim=dim, train_X=train_x_cons_new.clone(), train_Y=train_y_cons_new.clone(), options=cfg.gpclassimodel)
 
 
                 # As in https://docs.gpytorch.ai/en/v1.2.1/examples/04_Variational_and_Approximate_GPs/Non_Gaussian_Likelihoods.html
@@ -160,6 +170,11 @@ def run(cfg: DictConfig, rep_nr: int) -> None:
 
                 gp_cons.eval()
                 gp_cons.likelihood.eval()
+
+                print("gp_cons.train_inputs:",gp_cons.train_inputs)
+                print("gp_cons.train_targets:",gp_cons.train_targets)
+                print("gp_obj.train_inputs:",gp_obj.train_inputs)
+                print("gp_obj.train_targets:",gp_obj.train_targets)
 
                 # Debugging:
                 # test_x = torch.tensor([[0.9293, 0.3535]])

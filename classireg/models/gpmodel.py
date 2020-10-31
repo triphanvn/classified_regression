@@ -100,6 +100,12 @@ class GPmodel(ExactGP, GPyTorchModel):
 		self.covar_module.base_kernel.lengthscale = options.hyperpars.lengthscale
 		self.noise_std = options.hyperpars.noise_std.value # The evaluation noise is fixed, and given by the user
 
+
+		if options.penalization_failed_controller == "None":
+			self.penalization_failed_controller = None
+		else:
+			self.penalization_failed_controller = options.penalization_failed_controller
+
 		# # Initialize marginal log likelihood for the GPCR model.
 		# # mll_objective is callable
 		# # MLLGPCR can internally modify the model hyperparameters, and will do so throughout the optimization routine

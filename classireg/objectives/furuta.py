@@ -64,16 +64,15 @@ class FurutaObj():
 				aux = input(" * Was the experiment a failure or a success ? Type 'suc' or 'fail' : ")
 			is_stable = aux == "suc"
 			
-			# val_reward = val_constraint = INF
-			val_reward = INF
+			val_reward = val_constraint = INF
 			if is_stable:
 				val_reward = self.collect_float_positive(which_fun="f(x) (cost)")
-				# val_constraint = self.collect_float_positive(which_fun="g(x) (constraint)")
+				val_constraint = self.collect_float_positive(which_fun="g(x) (constraint)")
 
 			logger.info("Here is a summary of the values:")
-			logger.info("    Cost value:       {0:5f}".format(val_reward))
-			logger.info("    Label:            {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
-			# logger.info("    constraint value: {0:5f}".format(val_constraint))
+			logger.info("    Label:             {0:s}".format("Success!" if is_stable == True else "Failure (!)"))
+			logger.info("    Reward value:     {0:5f}".format(val_reward))
+			logger.info("    Constraint value: {0:5f}".format(val_constraint))
 			logger.info("Are you ok to continue? If not, you'll be asked to enetr all numbers once more.")
 
 			while aux not in ["0","1"]:
@@ -82,8 +81,8 @@ class FurutaObj():
 			if aux == "1":
 				values_are_correct = True
 
-		# return is_stable, val_reward, val_constraint
-		return is_stable, val_reward
+		return is_stable, val_reward, val_constraint
+		# return is_stable, val_reward
 
 	def _parsing(self,x_in):
 		"""
@@ -127,26 +126,27 @@ class FurutaObj():
 		logger.info("K_theta: {0:2.4f}".format(par[1].item()))
 
 		# Request cost value:
-		# is_stable, val_reward, val_constraint = self.collect_value_manual_input()
-		is_stable, val_reward = self.collect_value_manual_input()
+		is_stable, val_reward, val_constraint = self.collect_value_manual_input()
+		# is_stable, val_reward = self.collect_value_manual_input()
 
 		# # Re-scaling if necessary:
 		val_cost = float("Inf")
-		if val_reward != float("Inf"):
+		if val_reward != float("Inf") and val_constraint != float("Inf"):
 			
 			# Transform into cost:
 			val_cost = -val_reward
 
 			logger.info("    [re-scaled] Reward value:       {0:2.4f}".format(val_reward))
 			logger.info("    [re-scaled] Cost value:       {0:2.4f} (this is the one that EIC will receive)".format(val_cost))
-			# logger.info("    [re-scaled] constraint value: {0:2.4f}".format(val_constraint))
+			logger.info("    [re-scaled] constraint value: {0:2.4f}".format(val_constraint))
 
 
-		# Place -1.0 labels and INF to unstable values:
-		val_constraint = (+1.0)*is_stable + (0.0)*(not is_stable)
+		# # Place -1.0 labels and INF to unstable values:
+		# val_constraint = (val_constraint)*is_stable + (0.0)*(not is_stable)
 
 		# Assign constraint value (the constraint WalkerCons must be called immediately after):
-		self.cons_value = torch.tensor([[INF,val_constraint]],device=device,dtype=dtype)
+		# self.cons_value = torch.tensor([[INF,val_constraint]],device=device,dtype=dtype)
+		self.cons_value = torch.tensor([val_constraint],device=device,dtype=dtype)
 		return torch.tensor([val_cost],device=device,dtype=dtype)
 
 	def error_checking_x_in(self,x_in):
